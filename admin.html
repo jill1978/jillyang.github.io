@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>拼图游戏后台管理</title>
+    <script src="https://cdn.bootcdn.net/ajax/libs/qrcodejs2/0.0.2/qrcode.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #1a472a;
+            padding: 40px 20px;
+            font-family: system-ui;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff8ed;
+            border-radius: 32px;
+            padding: 30px;
+        }
+        h1 { color: #2c5a2a; margin-bottom: 20px; }
+        .section {
+            background: #f5efe3;
+            border-radius: 24px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        .upload-btn {
+            background: #c97e2a;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 40px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        .preview-img {
+            max-width: 200px;
+            border-radius: 16px;
+            margin: 15px 0;
+            display: none;
+        }
+        .game-link {
+            background: #2b2b28;
+            padding: 15px;
+            border-radius: 16px;
+            word-break: break-all;
+            margin: 15px 0;
+        }
+        .game-link a { color: #ffd966; }
+        #qrcode {
+            background: white;
+            padding: 15px;
+            border-radius: 20px;
+            display: inline-block;
+        }
+        .status { margin-top: 10px; color: #2c5e2a; }
+        button { cursor: pointer; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🧩 拼图游戏 · 管理后台</h1>
+    
+    <div class="section">
+        <h3>📷 1. 上传游戏图片</h3>
+        <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp">
+        <img id="preview" class="preview-img">
+        <br>
+        <button class="upload-btn" id="applyBtn">✅ 应用到游戏</button>
+        <div id="uploadStatus" class="status"></div>
+        <p style="font-size:13px; color:#886e44; margin-top:10px;">💡 图片会保存在浏览器中，所有玩家共享</p>
+    </div>
+
+    <div class="section">
+        <h3>📱 2. 游戏入口 & 二维码</h3>
+        <div class="game-link" id="gameLinkBox">
+            🔗 游戏地址：<a href="#" id="gameLink" target="_blank">加载中...</a>
+            <button id="copyBtn" style="margin-left:10px;">📋 复制</button>
+        </div>
+        <div id="qrcode"></div>
+        <p style="margin-top:15px; font-size:13px;">✅ 微信扫码即可游玩，二维码永久有效</p>
+    </div>
+
+    <div class="section">
+        <h3>📌 3. 部署提示</h3>
+        <p>将 admin.html 和 game.html 放在同一目录，上传到任意静态服务器即可。<br>
+        如果本地测试，请使用 http-server 或 python -m http.server 运行。</p>
+        <button id="resetBtn">🔄 恢复默认图片</button>
+    </div>
+</div>
+
+<script>
+    const STORAGE_KEY = 'puzzle_custom_image';
+    const DEFAULT_IMAGE = 'https://picsum.photos/id/104/800/800';
+    
+    function getGameUrl() {
+        let path = window.location.href;
+        let base = path.substring(0, path.lastIndexOf('/') + 1);
+        return base + 'game.html';
+    }
+    
+    function generateQR(url) {
+        let qrDiv = document.getElementById('qrcode');
+        qrDiv.innerHTML = '';
+        new QRCode(qrDiv, {
+            text: url,
+            width: 180,
+            height: 180,
+            colorDark: "#2b2b2b",
+            colorLight: "#ffffff"
+        });
+    }
+    
+    function updateGameLink() {
+        let url = getGameUrl();
+        let link = document.getElementById('gameLink');
+        link.href = url;
+        link.innerText = url;
+        generateQR(url);
+    }
+    
+    function saveImage(imgData) {
+        localStorage.setItem(STORAGE_KEY, imgData);
+        document.getElementById('uploadStatus').innerHTML = '✅ 图片已保存！玩家下次进入游戏生效';
+        setTimeout(() => document.getElementById('uploadStatus').innerHTML = '', 2000);
+    }
+    
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+        let file = e.target.files[0];
+        if (!file) return;
+        let reader = new FileReader();
+        reader.onload = function(ev) {
+            let img = document.getElementById('preview');
+            img.src = ev.target.result;
+            img.style.display = 'block';
+            img.setAttribute('data-temp', ev.target.result);
+        };
+        reader.readAsDataURL(file);
+    });
+    
+    document.getElementById('applyBtn').addEventListener('click', function() {
+        let img = document.getElementById('preview');
+        let tempSrc = img.getAttribute('data-temp');
+        if (tempSrc) {
+            saveImage(tempSrc);
+        } else {
+            alert('请先选择图片');
+        }
+    });
+    
+    document.getElementById('resetBtn').addEventListener('click', function() {
+        localStorage.removeItem(STORAGE_KEY);
+        document.getElementById('uploadStatus').innerHTML = '🔄 已恢复默认图片';
+        document.getElementById('preview').style.display = 'none';
+    });
+    
+    document.getElementById('copyBtn').addEventListener('click', function() {
+        let url = getGameUrl();
+        navigator.clipboard.writeText(url).then(() => alert('链接已复制：' + url));
+    });
+    
+    updateGameLink();
+</script>
+</body>
+</html>

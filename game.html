@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>4x4灵动拼图·纯图挑战</title>
+    <style>
+        * {
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            box-sizing: border-box;
+        }
+        body {
+            background: linear-gradient(145deg, #1a3c2c 0%, #0a2418 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        .game-container {
+            max-width: 600px;
+            width: 100%;
+            background: #fef3e0;
+            border-radius: 56px;
+            box-shadow: 0 20px 35px rgba(0,0,0,0.5);
+            padding: 20px 18px 28px;
+            position: relative;
+        }
+        .stats-bar {
+            display: flex;
+            justify-content: space-between;
+            background: #2d2419;
+            border-radius: 60px;
+            padding: 8px 20px;
+            margin-bottom: 20px;
+            color: #ffefcf;
+        }
+        .moves-box, .timer-box {
+            display: flex;
+            gap: 8px;
+            font-weight: bold;
+            align-items: baseline;
+        }
+        .moves-display, .timer-display {
+            font-family: monospace;
+            font-size: 1.6rem;
+            font-weight: 800;
+            background: #00000055;
+            padding: 0 10px;
+            border-radius: 32px;
+            color: #ffdd99;
+        }
+        .puzzle-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4px;
+            padding: 8px;
+            border-radius: 28px;
+            background: #c68e5a;
+            box-shadow: inset 0 0 0 2px #ffe1aa, 0 12px 20px rgba(0,0,0,0.3);
+        }
+        .tile {
+            aspect-ratio: 1 / 1;
+            background-size: 400% 400%;
+            background-repeat: no-repeat;
+            background-color: #e2b889;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: 0.08s linear;
+            position: relative;
+            box-shadow: 0 2px 0 #6b3f1a;
+            border: 2px solid #c28a5a;
+        }
+        .tile.selected {
+            filter: brightness(1.1);
+            box-shadow: 0 0 0 3px gold, 0 0 0 6px #ffd966;
+            transform: scale(0.98);
+        }
+        .tile:active {
+            transform: scale(0.97);
+        }
+        .control-bar {
+            display: flex;
+            justify-content: center;
+            gap: 25px;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+        button {
+            background: #3f2c1b;
+            border: none;
+            font-weight: bold;
+            padding: 12px 28px;
+            border-radius: 60px;
+            color: #fff5e6;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #1f140a;
+            transition: 0.07s linear;
+        }
+        button:active { transform: translateY(2px); }
+        .help-btn { background: #2c7840; box-shadow: 0 4px 0 #1a4d2a; }
+        .message-area {
+            text-align: center;
+            margin-top: 18px;
+            background: #00000099;
+            padding: 8px 12px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            color: #ffefcf;
+        }
+        /* 全屏预览模态框（用于求助闪现） */
+        .fullscreen-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            flex-direction: column;
+            cursor: pointer;
+        }
+        .fullscreen-modal img {
+            max-width: 90vw;
+            max-height: 80vh;
+            object-fit: contain;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            border: 4px solid #ffefb0;
+        }
+        .modal-text {
+            margin-top: 20px;
+            color: #ffecb3;
+            font-size: 1rem;
+            background: #00000066;
+            padding: 6px 20px;
+            border-radius: 40px;
+        }
+        /* 胜利动画 + 撒花容器 */
+        .victory-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 3000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        .bingo-text {
+            font-size: 5rem;
+            font-weight: 900;
+            color: gold;
+            text-shadow: 6px 6px 0 #c97e2a, 12px 12px 20px rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.6);
+            padding: 20px 40px;
+            border-radius: 80px;
+            backdrop-filter: blur(12px);
+            animation: bingoPop 0.6s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+            letter-spacing: 8px;
+            margin-bottom: 20px;
+        }
+        @keyframes bingoPop {
+            0% { transform: scale(0.2) rotate(-15deg); opacity: 0; }
+            50% { transform: scale(1.2) rotate(2deg); }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #ffaa44;
+            opacity: 0.8;
+            animation: fall linear forwards;
+            pointer-events: none;
+        }
+        @keyframes fall {
+            0% {
+                transform: translateY(-20vh) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(120vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+        @media (max-width: 550px) {
+            .moves-display, .timer-display { font-size: 1.2rem; }
+            button { padding: 8px 20px; font-size: 0.85rem; }
+            .bingo-text { font-size: 2.5rem; padding: 12px 24px; letter-spacing: 4px; }
+        }
+    </style>
+</head>
+<body>
+<div class="game-container">
+    <div class="stats-bar">
+        <div class="moves-box">🔁 步数 <span class="moves-display" id="movesCount">0</span></div>
+        <div class="timer-box">⏱️ 用时 <span class="timer-display" id="timerDisplay">00:00</span></div>
+    </div>
+    <div class="puzzle-grid" id="puzzleGrid"></div>
+    <div class="control-bar">
+        <button id="newGameBtn">✨ 新的一局</button>
+        <button id="helpBtn" class="help-btn">求助</button>
+    </div>
+    <div class="message-area" id="msgArea">点击两块碎片 → 交换位置 | 纯图挑战，拼出完整图案</div>
+</div>
+
+<script>
+    // ---------- 游戏配置 4x4 ----------
+    const SIZE = 4;
+    const TOTAL_TILES = SIZE * SIZE;  // 16
+    
+    let tiles = [];
+    let moves = 0;
+    let timerSeconds = 0;
+    let timerInterval = null;
+    let gameActive = true;
+    let isWinFlag = false;
+    let selectedIndex = null;
+    
+    let currentImageUrl = null;
+    
+    const gridContainer = document.getElementById('puzzleGrid');
+    const movesSpan = document.getElementById('movesCount');
+    const timerSpan = document.getElementById('timerDisplay');
+    const msgDiv = document.getElementById('msgArea');
+    
+    const STORAGE_KEY = 'puzzle_custom_image';
+    const DEFAULT_IMAGE = 'https://picsum.photos/id/104/800/800';
+    
+    function getStoredImage() {
+        return localStorage.getItem(STORAGE_KEY) || DEFAULT_IMAGE;
+    }
+    
+    function formatTime(sec) {
+        let m = Math.floor(sec / 60);
+        let s = sec % 60;
+        return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+    }
+    
+    function updateUI() {
+        movesSpan.innerText = moves;
+        timerSpan.innerText = formatTime(timerSeconds);
+        if(timerSeconds >= 90 && !isWinFlag) timerSpan.style.color = "#ffaa77";
+        else timerSpan.style.color = "#ffdd99";
+    }
+    
+    function stopTimer() { 
+        if(timerInterval) { clearInterval(timerInterval); timerInterval = null; } 
+    }
+    
+    function startTimer() {
+        if(timerInterval || !gameActive || isWinFlag) return;
+        timerInterval = setInterval(() => {
+            if(gameActive && !isWinFlag) { 
+                timerSeconds++; 
+                updateUI(); 
+            }
+        }, 1000);
+    }
+    
+    // 精确背景定位 (每个碎片显示原图正确部分)
+    // 对于4x4，SIZE=4，背景图尺寸 400% x 400%
+    function getTileBackgroundStyle(originalIdx) {
+        if(!currentImageUrl) return '';
+        const row = Math.floor(originalIdx / SIZE);
+        const col = originalIdx % SIZE;
+        // 使用百分比定位: 列偏移 col * 100/(SIZE-1) %, 行偏移 row * 100/(SIZE-1) %
+        // 对于4列: 0%, 33.33%, 66.67%, 100%  (完美对应四块)
+        const percentX = (col * 100) / (SIZE - 1);
+        const percentY = (row * 100) / (SIZE - 1);
+        return `url('${currentImageUrl}') no-repeat ${percentX}% ${percentY}% / ${SIZE*100}% ${SIZE*100}%`;
+    }
+    
+    function clearHighlights() {
+        document.querySelectorAll('.tile').forEach(t => t.classList.remove('selected'));
+    }
+    
+    function renderGrid() {
+        if(!gridContainer) return;
+        gridContainer.innerHTML = '';
+        for(let i = 0; i < TOTAL_TILES; i++) {
+            const val = tiles[i];
+            const tile = document.createElement('div');
+            tile.className = 'tile';
+            if(selectedIndex === i) tile.classList.add('selected');
+            tile.style.background = getTileBackgroundStyle(val);
+            tile.style.backgroundColor = '#e2b889';
+            tile.style.backgroundSize = `${SIZE*100}% ${SIZE*100}%`;
+            tile.style.backgroundRepeat = 'no-repeat';
+            
+            // 注意：此处已完全移除数字标识，没有任何 badge 或文字
+            
+            tile.setAttribute('data-index', i);
+            tile.addEventListener('click', (function(idx) { 
+                return () => onTileClick(idx); 
+            })(i));
+            gridContainer.appendChild(tile);
+        }
+    }
+    
+    function swapTiles(idxA, idxB) {
+        if(idxA === idxB) return false;
+        [tiles[idxA], tiles[idxB]] = [tiles[idxB], tiles[idxA]];
+        moves++;
+        updateUI();
+        renderGrid();
+        
+        if(timerSeconds === 0 && !isWinFlag) startTimer();
+        
+        if(checkVictory()) {
+            winGame();
+        } else {
+            msgDiv.innerText = `🔄 交换成功！步数 ${moves}`;
+        }
+        return true;
+    }
+    
+    function onTileClick(clickedIdx) {
+        if(!gameActive || isWinFlag) {
+            if(isWinFlag) msgDiv.innerText = "🎉 游戏已胜利，点「新的一局」继续挑战";
+            return;
+        }
+        
+        if(selectedIndex === null) {
+            selectedIndex = clickedIdx;
+            renderGrid();
+            msgDiv.innerText = `👉 已选中一块碎片，再点击另一块进行交换`;
+            return;
+        }
+        
+        swapTiles(selectedIndex, clickedIdx);
+        selectedIndex = null;
+        renderGrid();
+    }
+    
+    function checkVictory() { 
+        for(let i=0; i<TOTAL_TILES; i++) {
+            if(tiles[i] !== i) return false;
+        }
+        return true;
+    }
+    
+    // ---------- 撒花效果 + BINGO! ----------
+    function startConfetti() {
+        const colors = ['#ffaa44', '#ff6680', '#66ff66', '#44aaff', '#ffcc44', '#ff66cc', '#ffaa66', '#ff9999', '#99ff99', '#ffdd88'];
+        const container = document.createElement('div');
+        container.className = 'victory-overlay';
+        document.body.appendChild(container);
+        
+        // 生成220片彩纸
+        const confettiCount = 220;
+        for(let i = 0; i < confettiCount; i++) {
+            const conf = document.createElement('div');
+            conf.className = 'confetti';
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            conf.style.backgroundColor = color;
+            const size = 6 + Math.random() * 14;
+            conf.style.width = `${size}px`;
+            conf.style.height = `${size}px`;
+            conf.style.left = `${Math.random() * 100}%`;
+            conf.style.animationDuration = `${1 + Math.random() * 2.8}s`;
+            conf.style.animationDelay = `${Math.random() * 0.9}s`;
+            conf.style.opacity = 0.7 + Math.random() * 0.3;
+            conf.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+            container.appendChild(conf);
+        }
+        
+        // 添加 BINGO 文字
+        const bingoDiv = document.createElement('div');
+        bingoDiv.className = 'bingo-text';
+        bingoDiv.innerText = 'BINGO!';
+        container.appendChild(bingoDiv);
+        
+        // 3.2秒后逐渐移除所有撒花元素
+        setTimeout(() => {
+            if(container && container.parentNode) {
+                container.style.transition = 'opacity 0.5s';
+                container.style.opacity = '0';
+                setTimeout(() => {
+                    if(container && container.parentNode) container.remove();
+                }, 500);
+            }
+        }, 3200);
+    }
+    
+    function winGame() {
+        if(isWinFlag) return;
+        isWinFlag = true;
+        gameActive = false;
+        stopTimer();
+        selectedIndex = null;
+        renderGrid();
+        
+        // 播放胜利特效 + BINGO! 撒花
+        startConfetti();
+        
+        msgDiv.innerHTML = "🎉✨ BINGO! 完美复原！ ✨🎉";
+        msgDiv.style.background = "#d4a373dd";
+        msgDiv.style.color = "#2d1f0c";
+    }
+    
+    // 打乱拼图 (随机交换多次)
+    function shuffleTiles(steps = 400) {
+        for(let s = 0; s < steps; s++) {
+            const idxA = Math.floor(Math.random() * TOTAL_TILES);
+            const idxB = Math.floor(Math.random() * TOTAL_TILES);
+            if(idxA !== idxB) {
+                [tiles[idxA], tiles[idxB]] = [tiles[idxB], tiles[idxA]];
+            }
+        }
+        // 确保不是胜利状态
+        if(checkVictory() && steps > 10) {
+            [tiles[0], tiles[1]] = [tiles[1], tiles[0]];
+        }
+        renderGrid();
+    }
+    
+    function resetGame() {
+        stopTimer();
+        tiles = [...Array(TOTAL_TILES).keys()];
+        moves = 0;
+        timerSeconds = 0;
+        isWinFlag = false;
+        gameActive = true;
+        selectedIndex = null;
+        updateUI();
+        shuffleTiles(380);  // 4x4 充分打乱
+        msgDiv.style.background = "#00000099";
+        msgDiv.style.color = "#ffefcf";
+        msgDiv.innerText = "✨ 新的一局！点击两块碎片交换位置 ✨";
+        if(timerInterval) clearInterval(timerInterval);
+        timerInterval = null;
+    }
+    
+    // 显示完整拼图（带网格线），用于求助闪现
+    function showFullImageWithGrid(duration = 1000, autoClose = true) {
+        if(!currentImageUrl) return;
+        const canvas = document.createElement('canvas');
+        const img = new Image();
+        img.onload = function() {
+            const size = 700;
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, size, size);
+            // 绘制网格线 (4x4)
+            ctx.strokeStyle = '#ffaa44';
+            ctx.lineWidth = 5;
+            const cellSize = size / SIZE;
+            for(let i = 1; i < SIZE; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * cellSize, 0);
+                ctx.lineTo(i * cellSize, size);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, i * cellSize);
+                ctx.lineTo(size, i * cellSize);
+                ctx.stroke();
+            }
+            ctx.strokeStyle = '#ffdd88';
+            ctx.lineWidth = 6;
+            ctx.strokeRect(3, 3, size - 6, size - 6);
+            
+            const modal = document.createElement('div');
+            modal.className = 'fullscreen-modal';
+            const fullImg = document.createElement('img');
+            fullImg.src = canvas.toDataURL();
+            const textSpan = document.createElement('div');
+            textSpan.className = 'modal-text';
+            textSpan.innerText = '🎨 完整拼图参考 (点击关闭)';
+            modal.appendChild(fullImg);
+            modal.appendChild(textSpan);
+            modal.addEventListener('click', () => { if(modal.parentNode) modal.remove(); });
+            document.body.appendChild(modal);
+            if(autoClose && duration > 0) {
+                setTimeout(() => { if(modal.parentNode) modal.remove(); }, duration);
+            }
+        };
+        img.src = currentImageUrl;
+    }
+    
+    // 求助：闪现完整原图 1 秒后自动消失，回到当前拼图（不影响进度）
+    function helpFlashFullImage() {
+        if(!gameActive && !isWinFlag) return;
+        // 防止连续点击产生多个弹层
+        if(window._helpFlashActive) return;
+        window._helpFlashActive = true;
+        showFullImageWithGrid(1000, true);
+        setTimeout(() => { window._helpFlashActive = false; }, 1100);
+        msgDiv.innerText = "💡 求助：原图闪现1秒，仔细观察图案！";
+        setTimeout(() => {
+            if(!isWinFlag && gameActive) msgDiv.innerText = "继续交换碎片，拼出完整图案吧";
+        }, 1500);
+    }
+    
+    // 初始启动时展示全图 (带网格线，3秒自动关闭，帮助玩家记住原图)
+    function showInitialFullImage() {
+        if(!currentImageUrl) return;
+        const canvas = document.createElement('canvas');
+        const img = new Image();
+        img.onload = function() {
+            const size = 700;
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, size, size);
+            ctx.strokeStyle = '#ffaa44';
+            ctx.lineWidth = 5;
+            const cellSize = size / SIZE;
+            for(let i = 1; i < SIZE; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * cellSize, 0);
+                ctx.lineTo(i * cellSize, size);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, i * cellSize);
+                ctx.lineTo(size, i * cellSize);
+                ctx.stroke();
+            }
+            ctx.strokeStyle = '#ffdd88';
+            ctx.lineWidth = 6;
+            ctx.strokeRect(3, 3, size - 6, size - 6);
+            
+            const modal = document.createElement('div');
+            modal.className = 'fullscreen-modal';
+            const fullImg = document.createElement('img');
+            fullImg.src = canvas.toDataURL();
+            const textSpan = document.createElement('div');
+            textSpan.className = 'modal-text';
+            textSpan.innerText = '🎨 完整拼图预览 (3秒后开始挑战)';
+            modal.appendChild(fullImg);
+            modal.appendChild(textSpan);
+            modal.addEventListener('click', () => { if(modal.parentNode) modal.remove(); });
+            document.body.appendChild(modal);
+            setTimeout(() => { if(modal.parentNode) modal.remove(); }, 3000);
+        };
+        img.src = currentImageUrl;
+    }
+    
+    function initGame() {
+        currentImageUrl = getStoredImage();
+        const img = new Image();
+        img.onload = () => {
+            tiles = [...Array(TOTAL_TILES).keys()];
+            shuffleTiles(400);   // 充分打乱
+            moves = 0;
+            timerSeconds = 0;
+            isWinFlag = false;
+            gameActive = true;
+            selectedIndex = null;
+            updateUI();
+            renderGrid();
+            showInitialFullImage();  // 开局展示完整图3秒
+            if(timerInterval) clearInterval(timerInterval);
+            timerInterval = null;
+        };
+        img.onerror = () => {
+            console.warn('图片加载失败，使用默认图');
+            currentImageUrl = DEFAULT_IMAGE;
+            initGame();
+        };
+        img.src = currentImageUrl;
+    }
+    
+    // 绑定按钮：新的一局 和 求助
+    document.getElementById('newGameBtn').addEventListener('click', () => resetGame());
+    document.getElementById('helpBtn').addEventListener('click', () => helpFlashFullImage());
+    
+    initGame();
+</script>
+</body>
+</html>
